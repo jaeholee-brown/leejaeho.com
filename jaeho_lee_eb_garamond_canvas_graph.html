@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jaeho Lee</title>
+
+  <!-- Preconnect & load EB Garamond from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --header-height: 64px;
+      --max-content-width: 1100px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background:#fff; /* blank white */
+      color:#000;
+      font-family: "EB Garamond", Garamond, "Times New Roman", serif;
+    }
+
+    /* Top bar */
+    .top {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+
+    .brand {
+      font-size: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    .brand a,
+    .nav a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .brand a:hover,
+    .nav a:hover { text-decoration: underline; }
+
+    .nav {
+      display: flex;
+      gap: 20px;
+      font-size: 18px;
+    }
+
+    /* Canvas wrapper in the middle */
+    .center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(90vw, var(--max-content-width));
+      height: min(60vh, 520px);
+      display: grid;
+      place-items: center;
+    }
+
+    canvas { 
+      width: 100%;
+      height: 100%;
+      display: block; 
+      /* ensure crispness on HiDPI via JS backingStore size */
+    }
+
+    /* Tiny caption for tweakability (not visible UI clutter) */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  </style>
+</head>
+<body>
+  <!-- Top bar -->
+  <header class="top" role="banner">
+    <div class="brand"><a href="https://leejaeho.com/home">Jaeho Lee</a></div>
+    <nav class="nav" aria-label="Primary">
+      <a href="https://leejaeho.com/about">About</a>
+      <a href="https://leejaeho.com/writing">Writing</a>
+      <a href="https://leejaeho.com/CV">CV</a>
+    </nav>
+  </header>
+
+  <!-- Middle graph -->
+  <main class="center">
+    <canvas id="chart" aria-label="Cursor distance vs time line chart"></canvas>
+    <p class="sr-only" id="ariaStatus">Line chart showing cumulative cursor distance (pixels) over time since page load (seconds).</p>
+  </main>
+
+  <script>
+    // ========= Adjustable parameters =========
+    // Update cadence (ms). 0 (or <=0) means update every animation frame (~60Hz).
+    const UPDATE_INTERVAL_MS = 16; // tweak this number as you like
+
+    // How much padding to keep above the current max Y when auto-scaling
+    const Y_PAD_RATIO = 0.50;
+
+    // Grid/axes styling (kept minimal)
+    const AXIS_COLOR = '#000';
+    const GRID_COLOR = '#e5e5e5';
+    const LINE_COLOR = '#000';
+
+    // ========= Chart state =========
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+
+    let deviceRatio = Math.max(window.devicePixelRatio || 1, 1);
+
+    const state = {
+      startTime: performance.now(),
+      lastUpdate: 0,
+      points: [{ t: 0, d: 0 }], // {t: seconds since load, d: cumulative distance in pixels}
+      totalDistance: 0,
+      lastMouse: null, // {x,y}
+    };
+
+    // Track cursor movement to accumulate distance
+    window.addEventListener('mousemove', (e) => {
+      const pos = { x: e.clientX, y: e.clientY };
+      if (state.lastMouse) {
+        const dx = pos.x - state.lastMouse.x;
+        const dy = pos.y - state.lastMouse.y;
+        const dist = Math.hypot(dx, dy);
+        state.totalDistance += dist;
+      }
+      state.lastMouse = pos;
+    }, { passive: true });
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(2, Math.floor(rect.width * deviceRatio));
+      canvas.height = Math.max(2, Math.floor(rect.height * deviceRatio));
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(deviceRatio, deviceRatio);
+      // Redraw immediately after resize
+      draw();
+    }
+
+    window.addEventListener('resize', () => {
+      deviceRatio = Math.max(window.devicePixelRatio || 1, 1);
+      resizeCanvas();
+    });
+
+    // Add a point at the current time
+    function samplePoint() {
+      const now = performance.now();
+      const tSec = (now - state.startTime) / 1000;
+      state.points.push({ t: tSec, d: state.totalDistance });
+      // Keep memory bounded (optional): drop very old points if we exceed ~50k
+      if (state.points.length > 50000) state.points.splice(0, 10000);
+    }
+
+    function draw() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width, h = rect.height;
+
+      // Clear
+      ctx.clearRect(0, 0, w, h);
+
+      // Padding for axes labels/lines
+      const padL = 80, padR = 20, padT = 20, padB = 36;
+      const plotW = Math.max(1, w - padL - padR);
+      const plotH = Math.max(1, h - padT - padB);
+
+      // Determine scales
+      const nowSec = (performance.now() - state.startTime) / 1000;
+      const maxT = Math.max(5, nowSec); // ensure some width
+      const maxD = Math.max(10, state.points[state.points.length - 1].d);
+      const yMax = maxD * (1 + Y_PAD_RATIO);
+
+      const xToPx = (t) => padL + (t / maxT) * plotW;
+      const yToPx = (d) => padT + plotH - (d / yMax) * plotH;
+
+      // Grid lines (few, unobtrusive)
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = GRID_COLOR;
+      ctx.beginPath();
+      const ySteps = 4;
+      for (let i = 0; i <= ySteps; i++) {
+        const y = padT + (i / ySteps) * plotH;
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + plotW, y);
+      }
+      const xSteps = 5;
+      for (let i = 0; i <= xSteps; i++) {
+        const x = padL + (i / xSteps) * plotW;
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, padT + plotH);
+      }
+      ctx.stroke();
+
+      // Axes
+      ctx.strokeStyle = AXIS_COLOR;
+      ctx.beginPath();
+      // X axis
+      ctx.moveTo(padL, padT + plotH);
+      ctx.lineTo(padL + plotW, padT + plotH);
+      // Y axis
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + plotH);
+      ctx.stroke();
+
+      // Labels (very minimal)
+      ctx.fillStyle = AXIS_COLOR;
+      ctx.font = '14px "EB Garamond", Garamond, "Times New Roman", serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      // Y ticks + measure widths
+      const yLabelWidths = [];
+      for (let i = 0; i <= ySteps; i++) {
+        const d = (i / ySteps) * yMax;
+        const y = yToPx(d);
+        const text = Math.round(d).toString();
+        yLabelWidths.push(ctx.measureText(text).width);
+        ctx.fillText(text, padL - 8, y);
+      }
+
+      // X ticks
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for (let i = 0; i <= xSteps; i++) {
+        const t = (i / xSteps) * maxT;
+        const x = xToPx(t);
+        ctx.fillText(Math.round(t).toString(), x, padT + plotH + 8);
+      }
+
+      // Line
+      ctx.strokeStyle = LINE_COLOR;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < state.points.length; i++) {
+        const p = state.points[i];
+        const x = xToPx(p.t);
+        const y = yToPx(p.d);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // --- Dynamic Y-axis label offset to avoid overlap ---
+      const avgWidth = yLabelWidths.length ? yLabelWidths.reduce((a, b) => a + b, 0) / yLabelWidths.length : 0;
+      const maxWidth = yLabelWidths.length ? Math.max(...yLabelWidths) : 0;
+      const effectiveWidth = Math.max(maxWidth, avgWidth * 1.5); // push a bit extra left based on average digits
+      const yAxisLabelX = Math.max(8, padL - 8 - effectiveWidth - 12); // 12px gap beyond labels
+
+      // Titles (tiny, unobtrusive)
+      ctx.font = '13px "EB Garamond", Garamond, "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('Time since load (s)', padL + plotW / 2, h - 4);
+      ctx.save();
+      ctx.translate(yAxisLabelX, padT + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Cumulative cursor distance (px)', 0, 0);
+      ctx.restore();
+    }
+
+    function loop(ts) {
+      const elapsed = ts - state.lastUpdate;
+      const shouldUpdate = UPDATE_INTERVAL_MS <= 0 ? true : (elapsed >= UPDATE_INTERVAL_MS);
+      if (shouldUpdate) {
+        samplePoint();
+        draw();
+        state.lastUpdate = ts;
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Ensure canvas text repaints once web font is ready
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        draw();
+      });
+    }
+
+    // Init
+    resizeCanvas();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
