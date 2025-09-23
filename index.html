@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Jaeho Lee</title>
 
-  <!-- Preconnect & load EB Garamond from Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
 
   <style>
     :root {
@@ -19,10 +19,44 @@
     html, body {
       height: 100%;
       margin: 0;
-      background:#fff; /* blank white */
+      background:#fff;
       color:#000;
       font-family: "EB Garamond", Garamond, "Times New Roman", serif;
     }
+
+    /* ======== ADDED: Mobile Message ======== */
+    #mobile-message {
+      display: none; /* Hidden by default on desktop */
+      position: fixed;
+      inset: 0;
+      background-color: #fff;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    #mobile-message p {
+      font-family: "Comic Sans MS", "Comic Neue", cursive;
+      font-size: 32px;
+      font-weight: bold;
+      line-height: 1.4;
+      color: #111;
+    }
+
+    /* Media query to show the message and hide the site on mobile */
+    @media (max-width: 768px) {
+      .top, .center {
+        display: none !important; /* Hide original content */
+      }
+      #mobile-message {
+        display: flex !important; /* Show mobile message */
+      }
+    }
+    /* ======== END: Mobile Message ======== */
+
 
     /* Top bar */
     .top {
@@ -73,7 +107,6 @@
       width: 100%;
       height: 100%;
       display: block; 
-      /* ensure crispness on HiDPI via JS backingStore size */
     }
 
     /* Tiny caption for tweakability (not visible UI clutter) */
@@ -81,7 +114,10 @@
   </style>
 </head>
 <body>
-  <!-- Top bar -->
+  <div id="mobile-message">
+    <p>this is jaeho's website. jaeho is a silly statistics major and doesn't know what webdev stands for, please visit leejaeho.com on desktop :)</p>
+  </div>
+
   <header class="top" role="banner">
     <div class="brand"><a href="https://leejaeho.com/home">Jaeho Lee</a></div>
     <nav class="nav" aria-label="Primary">
@@ -91,7 +127,6 @@
     </nav>
   </header>
 
-  <!-- Middle graph -->
   <main class="center">
     <canvas id="chart" aria-label="Cursor distance vs time line chart"></canvas>
     <p class="sr-only" id="ariaStatus">Line chart showing cumulative cursor distance (pixels) over time since page load (seconds).</p>
@@ -99,13 +134,8 @@
 
   <script>
     // ========= Adjustable parameters =========
-    // Update cadence (ms). 0 (or <=0) means update every animation frame (~60Hz).
-    const UPDATE_INTERVAL_MS = 16; // tweak this number as you like
-
-    // How much padding to keep above the current max Y when auto-scaling
+    const UPDATE_INTERVAL_MS = 16;
     const Y_PAD_RATIO = 0.50;
-
-    // Grid/axes styling (kept minimal)
     const AXIS_COLOR = '#000';
     const GRID_COLOR = '#e5e5e5';
     const LINE_COLOR = '#000';
@@ -119,12 +149,11 @@
     const state = {
       startTime: performance.now(),
       lastUpdate: 0,
-      points: [{ t: 0, d: 0 }], // {t: seconds since load, d: cumulative distance in pixels}
+      points: [{ t: 0, d: 0 }],
       totalDistance: 0,
-      lastMouse: null, // {x,y}
+      lastMouse: null,
     };
 
-    // Track cursor movement to accumulate distance
     window.addEventListener('mousemove', (e) => {
       const pos = { x: e.clientX, y: e.clientY };
       if (state.lastMouse) {
@@ -142,7 +171,6 @@
       canvas.height = Math.max(2, Math.floor(rect.height * deviceRatio));
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(deviceRatio, deviceRatio);
-      // Redraw immediately after resize
       draw();
     }
 
@@ -151,37 +179,29 @@
       resizeCanvas();
     });
 
-    // Add a point at the current time
     function samplePoint() {
       const now = performance.now();
       const tSec = (now - state.startTime) / 1000;
       state.points.push({ t: tSec, d: state.totalDistance });
-      // Keep memory bounded (optional): drop very old points if we exceed ~50k
       if (state.points.length > 50000) state.points.splice(0, 10000);
     }
 
     function draw() {
       const rect = canvas.getBoundingClientRect();
       const w = rect.width, h = rect.height;
-
-      // Clear
       ctx.clearRect(0, 0, w, h);
-
-      // Padding for axes labels/lines
       const padL = 80, padR = 20, padT = 20, padB = 36;
       const plotW = Math.max(1, w - padL - padR);
       const plotH = Math.max(1, h - padT - padB);
 
-      // Determine scales
       const nowSec = (performance.now() - state.startTime) / 1000;
-      const maxT = Math.max(5, nowSec); // ensure some width
+      const maxT = Math.max(5, nowSec);
       const maxD = Math.max(10, state.points[state.points.length - 1].d);
       const yMax = maxD * (1 + Y_PAD_RATIO);
 
       const xToPx = (t) => padL + (t / maxT) * plotW;
       const yToPx = (d) => padT + plotH - (d / yMax) * plotH;
 
-      // Grid lines (few, unobtrusive)
       ctx.lineWidth = 1;
       ctx.strokeStyle = GRID_COLOR;
       ctx.beginPath();
@@ -199,23 +219,18 @@
       }
       ctx.stroke();
 
-      // Axes
       ctx.strokeStyle = AXIS_COLOR;
       ctx.beginPath();
-      // X axis
       ctx.moveTo(padL, padT + plotH);
       ctx.lineTo(padL + plotW, padT + plotH);
-      // Y axis
       ctx.moveTo(padL, padT);
       ctx.lineTo(padL, padT + plotH);
       ctx.stroke();
 
-      // Labels (very minimal)
       ctx.fillStyle = AXIS_COLOR;
       ctx.font = '14px "EB Garamond", Garamond, "Times New Roman", serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      // Y ticks + measure widths
       const yLabelWidths = [];
       for (let i = 0; i <= ySteps; i++) {
         const d = (i / ySteps) * yMax;
@@ -225,7 +240,6 @@
         ctx.fillText(text, padL - 8, y);
       }
 
-      // X ticks
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       for (let i = 0; i <= xSteps; i++) {
@@ -234,7 +248,6 @@
         ctx.fillText(Math.round(t).toString(), x, padT + plotH + 8);
       }
 
-      // Line
       ctx.strokeStyle = LINE_COLOR;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -246,13 +259,11 @@
       }
       ctx.stroke();
 
-      // --- Dynamic Y-axis label offset to avoid overlap ---
       const avgWidth = yLabelWidths.length ? yLabelWidths.reduce((a, b) => a + b, 0) / yLabelWidths.length : 0;
       const maxWidth = yLabelWidths.length ? Math.max(...yLabelWidths) : 0;
-      const effectiveWidth = Math.max(maxWidth, avgWidth * 1.5); // push a bit extra left based on average digits
-      const yAxisLabelX = Math.max(8, padL - 8 - effectiveWidth - 12); // 12px gap beyond labels
+      const effectiveWidth = Math.max(maxWidth, avgWidth * 1.5);
+      const yAxisLabelX = Math.max(8, padL - 8 - effectiveWidth - 12);
 
-      // Titles (tiny, unobtrusive)
       ctx.font = '13px "EB Garamond", Garamond, "Times New Roman", serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -277,14 +288,12 @@
       requestAnimationFrame(loop);
     }
 
-    // Ensure canvas text repaints once web font is ready
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => {
         draw();
       });
     }
 
-    // Init
     resizeCanvas();
     requestAnimationFrame(loop);
   </script>
