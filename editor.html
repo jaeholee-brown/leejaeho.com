@@ -23,6 +23,7 @@
     <div class="controls">
         <button id="startBtn" onclick="startSession()">Start Writing</button>
         <button id="stopBtn" onclick="finishSession()" disabled>Finish & Certify</button>
+        <button id="restartBtn" onclick="restartSession()" disabled>Restart</button>
         <span id="status">Status: Idle</span>
     </div>
 
@@ -47,6 +48,9 @@
 
         const editor = document.getElementById('editor');
         const status = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const restartBtn = document.getElementById('restartBtn');
 
         function startSession() {
             isRecording = true;
@@ -55,10 +59,25 @@
             editor.disabled = false;
             editor.value = "";
             editor.focus();
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            restartBtn.disabled = false;
             status.innerText = "Status: 🔴 Recording Keystrokes...";
             status.style.color = "red";
+        }
+
+        function restartSession() {
+            isRecording = false;
+            keystrokeLog = [];
+            startTime = 0;
+            editor.disabled = true;
+            editor.value = "";
+            stopBtn.disabled = true;
+            startBtn.disabled = false;
+            restartBtn.disabled = true;
+            document.getElementById('certResult').style.display = 'none';
+            status.innerText = "Status: Idle";
+            status.style.color = "#555";
         }
 
         editor.addEventListener('keydown', (e) => {
@@ -69,6 +88,17 @@
         editor.addEventListener('keyup', (e) => {
             if (!isRecording) return;
             keystrokeLog.push({ key: e.key, code: e.code, event: 'up', ts: Date.now() - startTime });
+        });
+
+        // Disable paste/drag-drop to prevent bypassing keystroke capture
+        editor.addEventListener('paste', (e) => {
+            e.preventDefault();
+        });
+        editor.addEventListener('drop', (e) => {
+            e.preventDefault();
+        });
+        editor.addEventListener('dragover', (e) => {
+            e.preventDefault();
         });
 
         async function finishSession() {
@@ -104,9 +134,13 @@
                 } else {
                     alert("Verification Failed: " + data.message);
                 }
+                stopBtn.disabled = true;
+                startBtn.disabled = false;
             } catch (error) {
                 console.error(error);
                 alert("Error connecting to verification server.");
+                stopBtn.disabled = true;
+                startBtn.disabled = false;
             }
         }
     </script>
