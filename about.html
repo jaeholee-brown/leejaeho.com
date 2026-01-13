@@ -32,6 +32,30 @@
             overflow: hidden;
         }
 
+        #screen-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        #back-btn {
+            background: none;
+            border: none;
+            font-family: var(--font-stack);
+            font-size: 0.9rem;
+            color: var(--grey);
+            cursor: pointer;
+            padding: 5px;
+            margin-top: 4px;
+            text-decoration: none;
+            z-index: 101;
+            filter: blur(0.4px);
+        }
+        #back-btn:hover {
+            color: var(--text-color);
+            text-decoration: underline;
+        }
+
         /* Screen Container */
         #outer-screen {
             background-color: var(--bg-color);
@@ -133,10 +157,13 @@
 </head>
 <body>
 
-    <div id="outer-screen">
-        <div id="game-container">
-            <div id="board"></div>
+    <div id="screen-stack">
+        <div id="outer-screen">
+            <div id="game-container">
+                <div id="board"></div>
+            </div>
         </div>
+        <a id="back-btn" href="https://leejaeho.com"><< back</a>
     </div>
 
     <script>

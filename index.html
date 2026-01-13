@@ -32,6 +32,11 @@
             overflow: hidden;
         }
 
+        #screen-stack {
+            position: relative;
+            display: inline-block;
+        }
+
         /* Screen Container */
         #outer-screen {
             background-color: var(--bg-color);
@@ -133,7 +138,7 @@
         /* Skip Button */
         #skip-btn {
             position: absolute;
-            bottom: -35px;
+            top: calc(100% + 4px);
             right: 0;
             background: none;
             border: none;
@@ -188,11 +193,13 @@
 </head>
 <body>
 
-    <div id="outer-screen">
-        <div id="game-container">
-            <div id="board"></div>
-            <button id="skip-btn">SKIP >></button>
+    <div id="screen-stack">
+        <div id="outer-screen">
+            <div id="game-container">
+                <div id="board"></div>
+            </div>
         </div>
+        <button id="skip-btn">SKIP >></button>
     </div>
     
     <input type="text" id="keyboard-trap">
