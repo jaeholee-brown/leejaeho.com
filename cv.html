@@ -151,8 +151,9 @@
             board.innerHTML = '';
             for (let c = 0; c < WORD_LENGTH; c++) {
                 const tile = document.createElement('div');
-                tile.classList.add('tile', 'menu-correct', 'header-tile');
-                tile.textContent = HEADER_WORD[c];
+                const char = ABOUT_WORD[c];
+                tile.classList.add('tile', 'header-tile', 'flash');
+                tile.textContent = char.trim();
                 board.appendChild(tile);
             }
         }
@@ -215,17 +216,10 @@
             });
         }
 
-        function flashAndSwapHeader() {
+        function revealHeader() {
             const headerTiles = document.querySelectorAll('.header-tile');
-            headerTiles.forEach(tile => tile.classList.add('flash'));
-
-            setTimeout(() => {
-                headerTiles.forEach((tile, index) => {
-                    tile.classList.remove('flash');
-                    tile.textContent = ABOUT_WORD[index].trim();
-                });
-                applyWordleColors(headerTiles, ABOUT_WORD, HEADER_WORD);
-            }, 400);
+            headerTiles.forEach(tile => tile.classList.remove('flash'));
+            applyWordleColors(headerTiles, ABOUT_WORD, HEADER_WORD);
         }
 
         initBoard();
@@ -235,7 +229,7 @@
         outerScreen.addEventListener('transitionend', (event) => {
             if (expanded || event.propertyName !== 'width') return;
             expanded = true;
-            flashAndSwapHeader();
+            revealHeader();
         });
 
         requestAnimationFrame(() => {
