@@ -1,301 +1,368 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jaeho Lee</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAEHO</title>
+    <style>
+        :root {
+            /* LIGHT MODE PALETTE */
+            --bg-color: #ffffff;
+            /* Text transparency allows grain to bleed through */
+            --text-color: rgba(0, 0, 0, 0.85);
+            --border-color: #bbbbbb; /* Slightly darker grey for better definition */
+            
+            /* COLORS */
+            --green: #538d4e; 
+            --yellow: #c9b458;
+            --grey: #787c7e;
+            
+            --font-stack: 'Courier New', Courier, monospace;
+        }
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+        body {
+            background-color: #e0e0e0;
+            color: var(--text-color);
+            font-family: var(--font-stack);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
 
-  <style>
-    :root {
-      --header-height: 64px;
-      --max-content-width: 1100px;
-    }
+        /* Screen Container */
+        #outer-screen {
+            background-color: var(--bg-color);
+            padding: 30px;
+            border: 4px solid #999;
+            border-radius: 4px;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.15);
+            overflow: hidden; 
+        }
 
-    html, body {
-      height: 100%;
-      margin: 0;
-      background:#fff;
-      color:#000;
-      font-family: "EB Garamond", Garamond, "Times New Roman", serif;
-    }
+        /* GRAIN + GRID OVERLAY */
+        #outer-screen::after {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0.65; 
 
-    /* ======== ADDED: Mobile Message ======== */
-    #mobile-message {
-      display: none; /* Hidden by default on desktop */
-      position: fixed;
-      inset: 0;
-      background-color: #fff;
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-      box-sizing: border-box;
-    }
+            background-image: 
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.2'/%3E%3C/svg%3E"),
+                linear-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+            background-size: 150px 150px, 2px 2px, 2px 2px;
+        }
 
-    #mobile-message p {
-      font-family: "Comic Sans MS", "Comic Neue", cursive;
-      font-size: 32px;
-      font-weight: bold;
-      line-height: 1.4;
-      color: #111;
-    }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative; 
+        }
 
-    /* Media query to show the message and hide the site on mobile */
-    @media (max-width: 768px) {
-      .top, .center {
-        display: none !important; /* Hide original content */
-      }
-      #mobile-message {
-        display: flex !important; /* Show mobile message */
-      }
-    }
-    /* ======== END: Mobile Message ======== */
+        #board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 4px;
+            width: 240px;
+            height: 288px;
+        }
+
+        .tile {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.6rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-sizing: border-box;
+            user-select: none;
+            color: var(--text-color);
+            
+            /* STRUCTURAL GRID LINES: FIXED COLOR */
+            border: 2px solid var(--border-color);
+            
+            /* Only background and transform animate */
+            transition: transform 0.1s, background-color 0.1s;
+            
+            /* BLUR for low-res feel */
+            filter: blur(0.65px);
+        }
+
+        /* --- FLASH EFFECT --- */
+        .tile.flash {
+            background-color: #ffffff !important;
+            color: transparent !important; /* Hide text during flash */
+            /* KEY CHANGE: Border stays distinct grey, does not turn white */
+            border-color: var(--border-color) !important; 
+            transition: none; 
+        }
+
+        /* State Styles (Game Loop) 
+           Note: We no longer change border-color here. 
+           The border remains the "physical" grid layer. */
+
+        .tile[data-state="active"] {
+            /* Active state border darkening is optional, removed here for consistency */
+            animation: pop 0.1s;
+        }
+        .tile[data-state="correct"] {
+            background-color: var(--green); 
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .tile[data-state="present"] {
+            background-color: var(--yellow); 
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .tile[data-state="absent"] {
+            background-color: var(--grey); 
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Skip Button */
+        #skip-btn {
+            position: absolute;
+            bottom: -35px;
+            right: 0;
+            background: none;
+            border: none;
+            font-family: var(--font-stack);
+            font-size: 0.9rem;
+            color: var(--grey);
+            cursor: pointer;
+            padding: 5px;
+            z-index: 101;
+            filter: blur(0.4px);
+        }
+        #skip-btn:hover {
+            color: var(--text-color);
+            text-decoration: underline;
+        }
+
+        /* Menu Mode Styles */
+        .menu-row-link { cursor: pointer; }
+        .menu-row-link:hover .tile { filter: brightness(0.9) blur(0.65px); }
+        
+        /* Menu Specific Colors */
+        /* Again, borders remain fixed grey to simulate grid overlay */
+        .tile.menu-correct { 
+            background-color: var(--green); 
+            color: rgba(255, 255, 255, 0.9); 
+        }
+        .tile.menu-present { 
+            background-color: var(--yellow); 
+            color: rgba(255, 255, 255, 0.9); 
+        }
+        .tile.menu-absent { 
+            background-color: var(--grey); 
+            color: rgba(255, 255, 255, 0.9); 
+        }
+        .tile.menu-empty { 
+            background-color: var(--bg-color); 
+        }
 
 
-    /* Top bar */
-    .top {
-      position: fixed;
-      inset: 0 0 auto 0;
-      height: var(--header-height);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      box-sizing: border-box;
-      background: #fff;
-    }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
 
-    .brand {
-      font-size: 20px;
-      letter-spacing: 0.3px;
-    }
-
-    .brand a,
-    .nav a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    .brand a:hover,
-    .nav a:hover { text-decoration: underline; }
-
-    .nav {
-      display: flex;
-      gap: 20px;
-      font-size: 18px;
-    }
-
-    /* Canvas wrapper in the middle */
-    .center {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: min(90vw, var(--max-content-width));
-      height: min(60vh, 520px);
-      display: grid;
-      place-items: center;
-    }
-
-    canvas { 
-      width: 100%;
-      height: 100%;
-      display: block; 
-    }
-
-    /* Tiny caption for tweakability (not visible UI clutter) */
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-  </style>
+        #keyboard-trap {
+            position: absolute;
+            opacity: 0;
+            top: -1000px;
+        }
+    </style>
 </head>
 <body>
-  <div id="mobile-message">
-    <p>this is jaeho's website. jaeho is a silly statistics major and doesn't know what webdev stands for, please visit leejaeho.com on desktop :)</p>
-  </div>
 
-  <header class="top" role="banner">
-    <div class="brand"><a href="https://leejaeho.com/home">Jaeho Lee</a></div>
-    <nav class="nav" aria-label="Primary">
-      <a href="https://leejaeho.com/about">About</a>
-      <a href="https://leejaeho.com/writing">Writing</a>
-      <a href="https://leejaeho.com/CV">CV</a>
-    </nav>
-  </header>
+    <div id="outer-screen">
+        <div id="game-container">
+            <div id="board"></div>
+            <button id="skip-btn">SKIP >></button>
+        </div>
+    </div>
+    
+    <input type="text" id="keyboard-trap">
 
-  <main class="center">
-    <canvas id="chart" aria-label="Cursor distance vs time line chart"></canvas>
-    <p class="sr-only" id="ariaStatus">Line chart showing cumulative cursor distance (pixels) over time since page load (seconds).</p>
-  </main>
+    <script>
+        const WORD_LENGTH = 5;
+        const ROWS = 6;
+        const TARGET_WORD = "JAEHO";
+        
+        const board = document.getElementById('board');
+        const keyboardTrap = document.getElementById('keyboard-trap');
+        const skipBtn = document.getElementById('skip-btn');
+        
+        let currentRow = 0;
+        let currentTile = 0;
+        let isGameOver = false;
+        let guesses = Array(ROWS).fill().map(() => Array(WORD_LENGTH).fill(""));
 
-  <script>
-    // ========= Adjustable parameters =========
-    const UPDATE_INTERVAL_MS = 16;
-    const Y_PAD_RATIO = 0.50;
-    const AXIS_COLOR = '#000';
-    const GRID_COLOR = '#e5e5e5';
-    const LINE_COLOR = '#000';
+        function initBoard() {
+            board.innerHTML = '';
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < WORD_LENGTH; c++) {
+                    const tile = document.createElement('div');
+                    tile.id = `tile-${r}-${c}`;
+                    tile.classList.add('tile');
+                    board.appendChild(tile);
+                }
+            }
+        }
 
-    // ========= Chart state =========
-    const canvas = document.getElementById('chart');
-    const ctx = canvas.getContext('2d');
+        initBoard();
 
-    let deviceRatio = Math.max(window.devicePixelRatio || 1, 1);
+        // Event Listeners
+        document.addEventListener('keydown', handleKeydown);
+        document.addEventListener('click', () => keyboardTrap.focus());
+        skipBtn.addEventListener('click', () => {
+             if (!isGameOver) triggerFlashAndMenu();
+        });
 
-    const state = {
-      startTime: performance.now(),
-      lastUpdate: 0,
-      points: [{ t: 0, d: 0 }],
-      totalDistance: 0,
-      lastMouse: null,
-    };
+        function handleKeydown(e) {
+            if (isGameOver) return;
+            const key = e.key;
+            if (key === 'Enter') checkGuess();
+            else if (key === 'Backspace') deleteLetter();
+            else if (/^[a-zA-Z]$/.test(key)) addLetter(key.toUpperCase());
+        }
 
-    window.addEventListener('mousemove', (e) => {
-      const pos = { x: e.clientX, y: e.clientY };
-      if (state.lastMouse) {
-        const dx = pos.x - state.lastMouse.x;
-        const dy = pos.y - state.lastMouse.y;
-        const dist = Math.hypot(dx, dy);
-        state.totalDistance += dist;
-      }
-      state.lastMouse = pos;
-    }, { passive: true });
+        function addLetter(letter) {
+            if (currentTile < WORD_LENGTH && currentRow < ROWS) {
+                const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                tile.textContent = letter;
+                tile.setAttribute('data-state', 'active');
+                guesses[currentRow][currentTile] = letter;
+                currentTile++;
+            }
+        }
 
-    function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = Math.max(2, Math.floor(rect.width * deviceRatio));
-      canvas.height = Math.max(2, Math.floor(rect.height * deviceRatio));
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(deviceRatio, deviceRatio);
-      draw();
-    }
+        function deleteLetter() {
+            if (currentTile > 0) {
+                currentTile--;
+                const tile = document.getElementById(`tile-${currentRow}-${currentTile}`);
+                tile.textContent = '';
+                tile.removeAttribute('data-state');
+                guesses[currentRow][currentTile] = '';
+            }
+        }
 
-    window.addEventListener('resize', () => {
-      deviceRatio = Math.max(window.devicePixelRatio || 1, 1);
-      resizeCanvas();
-    });
+        function checkGuess() {
+            if (currentTile !== WORD_LENGTH) return;
 
-    function samplePoint() {
-      const now = performance.now();
-      const tSec = (now - state.startTime) / 1000;
-      state.points.push({ t: tSec, d: state.totalDistance });
-      if (state.points.length > 50000) state.points.splice(0, 10000);
-    }
+            const guess = guesses[currentRow].join("");
+            
+            for (let i = 0; i < WORD_LENGTH; i++) {
+                const tile = document.getElementById(`tile-${currentRow}-${i}`);
+                const letter = guesses[currentRow][i];
+                setTimeout(() => {
+                    if (letter === TARGET_WORD[i]) tile.setAttribute('data-state', 'correct');
+                    else if (TARGET_WORD.includes(letter)) tile.setAttribute('data-state', 'present');
+                    else tile.setAttribute('data-state', 'absent');
+                }, i * 100);
+            }
 
-    function draw() {
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width, h = rect.height;
-      ctx.clearRect(0, 0, w, h);
-      const padL = 80, padR = 20, padT = 20, padB = 36;
-      const plotW = Math.max(1, w - padL - padR);
-      const plotH = Math.max(1, h - padT - padB);
+            setTimeout(() => {
+                if (guess === TARGET_WORD || currentRow >= ROWS - 1) {
+                    triggerFlashAndMenu();
+                } else {
+                    currentRow++;
+                    currentTile = 0;
+                }
+            }, 500);
+        }
 
-      const nowSec = (performance.now() - state.startTime) / 1000;
-      const maxT = Math.max(5, nowSec);
-      const maxD = Math.max(10, state.points[state.points.length - 1].d);
-      const yMax = maxD * (1 + Y_PAD_RATIO);
+        // --- FLASH & TRANSITION LOGIC ---
 
-      const xToPx = (t) => padL + (t / maxT) * plotW;
-      const yToPx = (d) => padT + plotH - (d / yMax) * plotH;
+        function triggerFlashAndMenu() {
+            isGameOver = true;
+            skipBtn.style.display = 'none';
 
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = GRID_COLOR;
-      ctx.beginPath();
-      const ySteps = 4;
-      for (let i = 0; i <= ySteps; i++) {
-        const y = padT + (i / ySteps) * plotH;
-        ctx.moveTo(padL, y);
-        ctx.lineTo(padL + plotW, y);
-      }
-      const xSteps = 5;
-      for (let i = 0; i <= xSteps; i++) {
-        const x = padL + (i / xSteps) * plotW;
-        ctx.moveTo(x, padT);
-        ctx.lineTo(x, padT + plotH);
-      }
-      ctx.stroke();
+            // Delay for last wordle reveal animation, then flash
+            setTimeout(() => {
+                // Flash Phase: Turn all current tiles white
+                const allTiles = document.querySelectorAll('.tile');
+                allTiles.forEach(tile => tile.classList.add('flash'));
 
-      ctx.strokeStyle = AXIS_COLOR;
-      ctx.beginPath();
-      ctx.moveTo(padL, padT + plotH);
-      ctx.lineTo(padL + plotW, padT + plotH);
-      ctx.moveTo(padL, padT);
-      ctx.lineTo(padL, padT + plotH);
-      ctx.stroke();
+                // After short flash, wipe and render menu
+                setTimeout(() => {
+                    transformToMenu();
+                }, 400); // Flash duration
 
-      ctx.fillStyle = AXIS_COLOR;
-      ctx.font = '14px "EB Garamond", Garamond, "Times New Roman", serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      const yLabelWidths = [];
-      for (let i = 0; i <= ySteps; i++) {
-        const d = (i / ySteps) * yMax;
-        const y = yToPx(d);
-        const text = Math.round(d).toString();
-        yLabelWidths.push(ctx.measureText(text).width);
-        ctx.fillText(text, padL - 8, y);
-      }
+            }, 800);
+        }
+        
+        function transformToMenu() {
+            board.innerHTML = ''; 
 
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      for (let i = 0; i <= xSteps; i++) {
-        const t = (i / xSteps) * maxT;
-        const x = xToPx(t);
-        ctx.fillText(Math.round(t).toString(), x, padT + plotH + 8);
-      }
+            const menuData = [
+                { text: "JAEHO", type: "header", link: null },
+                { text: "     ", type: "spacer", link: null }, 
+                { text: "ABOUT", type: "link", link: "https://leejaeho.com/about" },
+                { text: "NOTES", type: "link", link: "https://leejaeho.com/notes" },
+                { text: "CV   ", type: "link", link: "https://leejaeho.com/cv" },
+                { text: "     ", type: "spacer", link: null } 
+            ];
 
-      ctx.strokeStyle = LINE_COLOR;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let i = 0; i < state.points.length; i++) {
-        const p = state.points[i];
-        const x = xToPx(p.t);
-        const y = yToPx(p.d);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+            menuData.forEach((rowInfo, rIndex) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.style.display = 'contents';
+                if(rowInfo.type === 'link') rowDiv.classList.add('menu-row-link');
 
-      const avgWidth = yLabelWidths.length ? yLabelWidths.reduce((a, b) => a + b, 0) / yLabelWidths.length : 0;
-      const maxWidth = yLabelWidths.length ? Math.max(...yLabelWidths) : 0;
-      const effectiveWidth = Math.max(maxWidth, avgWidth * 1.5);
-      const yAxisLabelX = Math.max(8, padL - 8 - effectiveWidth - 12);
+                for (let c = 0; c < WORD_LENGTH; c++) {
+                    const char = rowInfo.text[c];
+                    const tile = document.createElement('div');
+                    tile.classList.add('tile');
+                    tile.textContent = char.trim();
 
-      ctx.font = '13px "EB Garamond", Garamond, "Times New Roman", serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText('Time since load (s)', padL + plotW / 2, h - 4);
-      ctx.save();
-      ctx.translate(yAxisLabelX, padT + plotH / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText('Cumulative cursor distance (px)', 0, 0);
-      ctx.restore();
-    }
+                    if (rowInfo.type === 'header') {
+                        // The answer is always green
+                        tile.classList.add('menu-correct');
+                    } 
+                    else if (char === " ") {
+                        // Spaces are empty (White)
+                        tile.classList.add('menu-empty');
+                    } 
+                    else {
+                        // WORDLE LOGIC FOR MENU ITEMS
+                        // 1. Is it in the correct spot? (Green)
+                        if (char === TARGET_WORD[c]) {
+                            tile.classList.add('menu-correct');
+                        } 
+                        // 2. Is it in the word at all? (Yellow)
+                        else if (TARGET_WORD.includes(char)) {
+                            tile.classList.add('menu-present');
+                        } 
+                        // 3. Not in word (Grey)
+                        else {
+                            tile.classList.add('menu-absent');
+                        }
+                    }
 
-    function loop(ts) {
-      const elapsed = ts - state.lastUpdate;
-      const shouldUpdate = UPDATE_INTERVAL_MS <= 0 ? true : (elapsed >= UPDATE_INTERVAL_MS);
-      if (shouldUpdate) {
-        samplePoint();
-        draw();
-        state.lastUpdate = ts;
-      }
-      requestAnimationFrame(loop);
-    }
+                    rowDiv.appendChild(tile);
+                }
+                board.appendChild(rowDiv);
 
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        draw();
-      });
-    }
-
-    resizeCanvas();
-    requestAnimationFrame(loop);
-  </script>
+                 if (rowInfo.type === 'link') {
+                        rowDiv.onclick = () => {
+                             window.location.href = rowInfo.link;
+                        };
+                    }
+            });
+        }
+    </script>
 </body>
 </html>
