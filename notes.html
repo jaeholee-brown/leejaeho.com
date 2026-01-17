@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NOTES</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&display=swap');
+
         :root {
             /* LIGHT MODE PALETTE */
             --bg-color: #ffffff;
@@ -18,6 +20,7 @@
             --grey: #787c7e;
 
             --font-stack: 'Courier New', Courier, monospace;
+            --notes-font: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', serif;
         }
 
         body {
@@ -153,6 +156,61 @@
         .tile.menu-empty {
             background-color: var(--bg-color);
         }
+
+        #notes-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 6px 6px 6px 6px;
+            box-sizing: border-box;
+            font-family: var(--notes-font);
+            font-size: 1rem;
+            line-height: 1.5;
+            color: rgba(0, 0, 0, 0.72);
+            overflow-wrap: break-word;
+            overflow-y: auto;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        #notes-panel.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        #notes-panel p {
+            margin: 0 0 8px 0;
+        }
+
+        #notes-panel ul {
+            margin: 6px 0 0 0;
+            padding-left: 18px;
+        }
+
+        #notes-panel li {
+            margin-bottom: 8px;
+        }
+
+        #notes-panel li:last-child {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 640px) {
+            #notes-panel {
+                font-size: 0.95rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -161,9 +219,18 @@
         <div id="outer-screen">
             <div id="game-container">
                 <div id="board"></div>
+                <div id="notes-panel" aria-live="polite">
+                    <p>here, i will keep odds and ends.</p>
+                    <p>for now, blogposts i want to write:</p>
+                    <ul>
+                        <li>in which i argue the next valued human trait, after physical ability and intellectual ability are ~equalized by the steam engine and ASI, will be ability to make people feel good (and that it will become less acceptable to discriminate people by intelligence)</li>
+                        <li>in which i tie evals of LLMs to psych studies</li>
+                        <li>how to make things abundant without cheapening them as experiences</li>
+                    </ul>
+                </div>
             </div>
         </div>
-        <a id="back-btn" href="https://leejaeho.com"><< back</a>
+        <a id="back-btn" href="https://leejaeho.com/?menu=1"><< back</a>
     </div>
 
     <script>
@@ -174,6 +241,8 @@
         const RESTORE_LEAD_MS = 550;
 
         const board = document.getElementById('board');
+        const notesPanel = document.getElementById('notes-panel');
+        const gameContainer = document.getElementById('game-container');
         const outerScreen = document.getElementById('outer-screen');
 
         function initBoard() {
@@ -188,10 +257,17 @@
         }
 
         function lockInitialSize() {
-            const rect = outerScreen.getBoundingClientRect();
-            outerScreen.style.width = `${rect.width}px`;
-            outerScreen.style.height = `${rect.height}px`;
-            return rect;
+            const boardRect = board.getBoundingClientRect();
+            const styles = getComputedStyle(outerScreen);
+            const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+            const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+            const borderX = parseFloat(styles.borderLeftWidth) + parseFloat(styles.borderRightWidth);
+            const borderY = parseFloat(styles.borderTopWidth) + parseFloat(styles.borderBottomWidth);
+            const width = boardRect.width + paddingX + borderX;
+            const height = boardRect.height + paddingY + borderY;
+            outerScreen.style.width = `${width}px`;
+            outerScreen.style.height = `${height}px`;
+            return { width, height };
         }
 
         function expandScreen(initialRect) {
@@ -199,6 +275,17 @@
             const targetHeight = Math.round(initialRect.height * 1.5);
             outerScreen.style.width = `${targetWidth}px`;
             outerScreen.style.height = `${targetHeight}px`;
+        }
+
+        function updateNotesPanelBounds() {
+            if (!notesPanel) return;
+            const firstTile = board.querySelector('.header-tile') || board.firstElementChild;
+            if (!firstTile) return;
+            const containerRect = gameContainer.getBoundingClientRect();
+            const tileRect = firstTile.getBoundingClientRect();
+            const gap = parseFloat(getComputedStyle(board).rowGap) || 0;
+            const top = tileRect.bottom - containerRect.top + gap;
+            notesPanel.style.top = `${top}px`;
         }
 
         function getWordleStates(guess, target) {
@@ -252,10 +339,15 @@
             const headerTiles = document.querySelectorAll('.header-tile');
             headerTiles.forEach(tile => tile.classList.remove('flash'));
             applyWordleColors(headerTiles, ABOUT_WORD, HEADER_WORD);
+            if (notesPanel) {
+                notesPanel.classList.add('visible');
+            }
         }
 
         initBoard();
         const initialRect = lockInitialSize();
+        updateNotesPanelBounds();
+        window.addEventListener('resize', updateNotesPanelBounds);
 
         outerScreen.addEventListener('transitionend', (event) => {
             if (revealed || event.propertyName !== 'width') return;

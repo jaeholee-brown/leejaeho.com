@@ -231,6 +231,12 @@
         }
 
         initBoard();
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('menu')) {
+            isGameOver = true;
+            skipBtn.style.display = 'none';
+            transformToMenu();
+        }
 
         // Event Listeners
         document.addEventListener('keydown', handleKeydown);
