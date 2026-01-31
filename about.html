@@ -206,9 +206,60 @@
             margin-bottom: 0;
         }
 
-        @media (max-width: 640px) {
+        /* Mobile Responsive Styles */
+        @media (max-width: 480px) {
+            body {
+                padding: 16px;
+                box-sizing: border-box;
+            }
+
+            #outer-screen {
+                padding: 16px;
+                max-width: calc(100vw - 32px);
+                max-height: calc(100vh - 80px);
+            }
+
+            #board {
+                width: 200px;
+                height: auto;
+                grid-template-rows: 1fr;
+            }
+
+            .tile {
+                font-size: 1.3rem;
+                aspect-ratio: 1;
+            }
+
             #content-panel {
-                font-size: 0.95rem;
+                font-size: 0.9rem;
+                padding: 4px;
+            }
+
+            #back-btn {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 360px) {
+            body {
+                padding: 12px;
+            }
+
+            #outer-screen {
+                padding: 12px;
+                max-width: calc(100vw - 24px);
+            }
+
+            #board {
+                width: 170px;
+            }
+
+            .tile {
+                font-size: 1.1rem;
+            }
+
+            #content-panel {
+                font-size: 0.85rem;
             }
         }
     </style>
@@ -232,7 +283,7 @@
         const HEADER_WORD = "JAEHO";
         const ABOUT_WORD = "ABOUT";
         const EXPAND_DURATION_MS = 800;
-        const RESTORE_LEAD_MS = 550;
+        const RESTORE_LEAD_MS = 0;
 
         const board = document.getElementById('board');
         const contentPanel = document.getElementById('content-panel');
@@ -265,8 +316,19 @@
         }
 
         function expandScreen(initialRect) {
-            const targetWidth = Math.round(initialRect.width * 2);
-            const targetHeight = Math.round(initialRect.height * 1.5);
+            const isMobile = window.innerWidth <= 480;
+            const maxWidth = window.innerWidth - (isMobile ? 32 : 0);
+            const maxHeight = window.innerHeight - (isMobile ? 80 : 0);
+
+            let targetWidth = Math.round(initialRect.width * 2);
+            let targetHeight = Math.round(initialRect.height * 1.5);
+
+            // Constrain to viewport on mobile
+            if (isMobile) {
+                targetWidth = Math.min(targetWidth, maxWidth);
+                targetHeight = Math.min(targetHeight, maxHeight);
+            }
+
             outerScreen.style.width = `${targetWidth}px`;
             outerScreen.style.height = `${targetHeight}px`;
         }
